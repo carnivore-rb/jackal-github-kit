@@ -23,15 +23,10 @@ module Jackal
       # @return [Octokit::Client]
       def github_client
         gh_conf = config.fetch(:github,
-          app_config.fetch(:github)
+          app_config.get(:github)
         )
-        args = Smash.new(
-          :api_endpoint => gh_conf.fetch(:api_endpoint, 'https://api.github.com/'),
-          :web_endpoint => gh_conf.fetch(:web_endpoint, 'https://github.com/'),
-          :access_token => gh_conf.get(:access_token)
-        )
-        memoize("github_client_#{args.checksum}") do
-          Octokit::Client.new(args)
+        memoize("github_client_#{gh_conf.checksum}") do
+          Octokit::Client.new(gh_conf)
         end
       end
 
