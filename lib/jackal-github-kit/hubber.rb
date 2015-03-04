@@ -22,10 +22,12 @@ module Jackal
 
       # @return [Octokit::Client]
       def github_client
-        gh_conf = config.fetch(:github,
-          app_config.get(:github)
-        )
-        memoize("github_client_#{gh_conf.checksum}") do
+        memoize(:github_client) do
+          gh_conf = {
+            :access_token => config.fetch(:github, :access_token,
+              app_config.get(:github, :access_token)
+            )
+          }
           Octokit::Client.new(gh_conf)
         end
       end
@@ -35,8 +37,9 @@ module Jackal
       # @param message [Carnivore::Message]
       def execute(message)
         failure_wrap(message) do |payload|
-          write_commit_comment(payload) if(payload.get(:data, :github_kit, :commit_comment))
-          write_status(payload) if(payload.get(:data, :github_kit, :status))
+          write_release(payload) if payload.get(:data, :github_kit, :release)
+          write_commit_comment(payload) if payload.get(:data, :github_kit, :commit_comment)
+          write_status(payload) if payload.get(:data, :github_kit, :status)
           job_completed(:github_kit, payload, message)
         end
       end
@@ -71,6 +74,42 @@ module Jackal
           status[:state].to_sym,
           status.fetch(:extras, Smash.new)
         )
+        true
+      end
+
+      # Write release to github
+      #
+      # @param payload [Smash]
+      # @return [TrueClass]
+      def write_release(payload)
+        info 'Creating new release on GitHub'
+        rel = payload[:data][:github_kit].delete(:release)
+        release = github_client.create_release(
+          rel[:repository],
+          rel[:tag_name],
+          :name => rel[:name],
+          :target_commitish => rel[:reference],
+          :prerelease => rel[:prerelease],
+          :body => rel[:body]
+        )
+
+        api_release_url = release.rels[:self].href
+        public_release_url = release.rels[:html].href
+
+        info 'New release created on GitHub. Uploading assets.'
+        rel[:assets].each do |asset|
+          debug "Uploading release asset - #{asset}"
+          github_client.upload_asset(
+            api_release_url,
+            asset_store.get(asset),
+            :name => asset.sub(/^.+?_/, ''),
+            :content_type => 'application/octet-stream'
+          )
+          debug "Completed release asset upload - #{asset}"
+        end
+
+        payload.set(:data, :github_kit, :release, :api_url, api_release_url)
+        payload.set(:data, :github_kit, :release, :public_url, public_release_url)
         true
       end
 
