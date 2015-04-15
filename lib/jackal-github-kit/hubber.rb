@@ -97,19 +97,26 @@ module Jackal
         public_release_url = release.rels[:html].href
 
         info 'New release created on GitHub. Uploading assets.'
-        rel[:assets].each do |asset|
+        assets = rel[:assets].map do |asset|
           debug "Uploading release asset - #{asset}"
-          github_client.upload_asset(
+          response = github_client.upload_asset(
             api_release_url,
             asset_store.get(asset),
             :name => asset.sub(/^.+?_/, ''),
             :content_type => 'application/octet-stream'
           )
           debug "Completed release asset upload - #{asset}"
+          Smash.new(
+            :url => response[:url],
+            :browser_url => response[:browser_download_url],
+            :name => response[:name],
+            :id => response[:id]
+          )
         end
-
+        payload.set(:data, :github_kit, :release, :assets, assets)
         payload.set(:data, :github_kit, :release, :api_url, api_release_url)
         payload.set(:data, :github_kit, :release, :public_url, public_release_url)
+
         true
       end
 
