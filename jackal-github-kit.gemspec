@@ -12,5 +12,6 @@ Gem::Specification.new do |s|
   s.license = 'Apache 2.0'
   s.add_dependency 'jackal'
   s.add_dependency 'octokit'
+  s.add_development_dependency 'carnivore-actor'
   s.files = Dir['lib/**/*'] + %w(jackal-github-kit.gemspec README.md CHANGELOG.md CONTRIBUTING.md LICENSE)
 end
