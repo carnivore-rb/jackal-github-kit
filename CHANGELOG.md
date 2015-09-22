@@ -1,3 +1,6 @@
+# v0.1.6
+* Relax jackal constraint
+
 # v0.1.4
 * Add service registration
 
